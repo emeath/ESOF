@@ -1,0 +1,3 @@
+# conectando ...
+# criando um banco de dados na MEMORIA RAM
+conn = sqlite3.connect(':memory:')
