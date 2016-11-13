@@ -9,7 +9,7 @@ from gen_random_values import *
 
 lista = []
 repeat = 100
-with io.open('clientes.csv', 'wt') as f:
+with io.open('cidades.csv', 'wt') as f:
     for i in range(repeat):
         #date = datetime.datetime.now().isoformat(" ")
         fname = names.get_first_name()
@@ -25,4 +25,4 @@ with io.open('clientes.csv', 'wt') as f:
                      city, uf, gen_timestamp()))
     for l in lista:
         s = l[0] + "," + str(l[1]) + "," + l[2] + "," + l[3] + "," + l[4] + "," + l[5] + "," + l[6] + "," + l[7] + "\n"
-	f.write(str(s))
+        f.write(str(s))

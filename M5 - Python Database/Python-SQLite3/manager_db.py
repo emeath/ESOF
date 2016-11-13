@@ -24,7 +24,7 @@ class Connect(object):
 		if self.conn:
 			self.conn.commit()
 
-	def close_sb(self):
+	def close_db(self):
 		if self.conn:
 			self.conn.close()
 			print('Conexao fechada.')
@@ -115,7 +115,6 @@ class ClientesDb(object):
 		except sqlite3.IntegrityError:
 			print('Aviso: o email deve ser unico.')
 			return False
-
 
 	def inserir_randomico(self, repeat = 10):
 		''' Inserir registros com valores randomicos names '''
@@ -258,9 +257,144 @@ class ClientesDb(object):
 			print("Aviso: O campo 'bloqueado' ja existe.")
 			return False
 
+	def table_info(self):
+		t = self.db.cursor.execute(
+			'PRAGMA table_info({})'.format(self.tb_name))
+		colunas = [tupla[1] for tupla in t.fetchall()]
+		print('Colunas:', colunas)
+
+	def table_list(self):
+		l = self.db.cursor.execute("""
+			SELECT name FROM sqlite_master WHERE type='table' ORDER BY name
+								   """)
+		print('Tabelas:')
+		for tabela in l.fetchall():
+			print('%s' % (tabela))								   			
+
+	def table_schema(self):
+		s = self.db.cursor.execute("""
+			SELECT sql FROM sqlite_master WHERE type='table' AND name = ?
+			""", (self.tb_name,))
+		print('Schema: ')
+		for schema in s.fetchall():
+			print('%s' % (schema))
+
+	def backup(self, file_name = 'clientes_bkp.sql'):
+		with io.open(file_name, 'w') as f:
+			for linha in self.db.conn.iterdump():
+				f.write('%s\n' % linha)
+
+		print('Backup realizado com sucesso.')
+		print('Salvo como %s' % file_name)
+
+	def importar_dados(self, db_name = 'clientes_recovery.db', file_name = 'clientes_bkp.sql'):
+		try:
+			self.db = Connect(db_name)
+			f = io.open(file_name, 'r')
+			sql = f.read()
+			self.db.cursor.executescript(sql)
+			print('Banco de dados recuperado com sucesso.')
+			print('Salvo como %s' % db_name)	
+		except sqlite3.OperationalError:
+			print('Aviso: O banco de dados %s ja existe. Exclua-o e faça novamente.' % db_name)
+			return False
+
+	def fechar_conexao(self):
+		self.db.close_db()		
+
+class PessoasDb(object):
+	"""docstring for PessoasDb"""
+	tb_name = 'pessoas'
+	def __init__(self):
+		self.db = Connect('pessoas.db')
+		self.tb_name
+
+	def criar_schema(self, schema_name = 'pessoas_schema.sql'):
+		print('Criando tabela %s ...' % self.tb_name)
+
+		try:
+			with open(schema_name, 'rt') as f:
+				schema = f.read()
+				self.db.cursor.executescript(schema)
+		except sqlite3.Error:
+			print('Aviso: A tabela %s ja existe.' % self.tb_name)
+			return False
+			
+		print('Tabela %s criada com sucesso.' % self.tb_name)	
 
 
+	def inserir_de_csv(self, file_name = 'cidades.csv'):
+		try:
+			c = csv.reader(
+				open(file_name, 'rt'), delimiter = ',')
+			t = (c,)
+			for t in c:
+				self.db.cursor.execute("""
+					INSERT INTO cidades (cidade, uf)
+					VALUES (?, ?)
+					""", t)
+			# gravando no bd
+			self.db.commit_db()
+			print('Dados importados do csv com sucesso.')			
+		except sqlite3.IntegrityError:
+			print('Aviso: A cidade deve ser unica.')
+			return False
+		
+	# conta quantas cidades estao cadastradas e escolhe uma delas pelo id.	
+	def gen_cidade(self):
+		sql = 'SELECT COUNT(*) FROM cidades'
+		q = self.db.cursor.execute(sql)		
+		return q.fetchone()[0]
 
+	def inserir_randomico(self, repeat = 10):
+		lista = []
+		for _ in range (repeat):
+			fname = names.get_first_name()
+			lname = names.get_last_name()
+			email = fname[0].lower() + '.' + lname.lower() + '@email.com'
+			cidade_id = random.randint(1, self.gen_cidade())
+			lista.append((fname, lname, email, cidade_id))
+		try:
+			self.db.cursor.executemany("""
+				INSERT INTO pessoas (nome, sobrenome, email, cidade_id)
+				VALUES (?, ?, ?, ?)
+				""", lista)
+			self.db.commit_db()
+			print('Inserindo %s registros na tabela...' % repeat)
+			print('Registros criados com sucesso.')
+		except sqlite3.IntegrityError:
+			print('Aviso: o email deve ser unico.')
+			return False
+
+	def ler_todas_pessoas(self):
+		sql = 'SELECT * FROM pessoas INNER JOIN cidades ON pessoas.cidade_id = cidades.id'
+		r = self.db.cursor.execute(sql)
+		return r.fetchall()
+
+	def imprimir_todas_pessoas(self):
+		lista = self.ler_todas_pessoas()
+		for c in lista:
+			print(c)
+	
+	# myselect, imprime todos os nomes que começam com R
+	def meu_select(self, sql = "SELECT * FROM pessoas WHERE nome LIKE 'R%' ORDER BY nome"):
+		r = self.db.cursor.execute(sql)
+		self.db.commit_db()
+		print('Nomes que comecem com R:')
+		for c in r.fetchall():
+			print(c)
+
+	def table_list(self):
+		# listando as tabelas do bd
+		l = self.db.cursor.execute("""
+			SELECT name FROM sqlite_master WHERE type='table' ORDER BY name
+			""")
+		print('Tabelas: ')
+		for tabela in l.fetchall():
+			print('%s' % (tabela))
+
+	def fechar_conexao(self):
+		self.db.close_db()
 
 if __name__ == '__main__':
 	c = ClientesDb()

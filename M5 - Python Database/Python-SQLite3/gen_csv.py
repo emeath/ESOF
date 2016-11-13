@@ -10,6 +10,7 @@ from gen_random_values import *
 lista = []
 repeat = 100
 with io.open('clientes.csv', 'wt') as f:
+#with io.open('cidades.csv', 'wt') as f:
     for i in range(repeat):
         #date = datetime.datetime.now().isoformat(" ")
         fname = names.get_first_name()
